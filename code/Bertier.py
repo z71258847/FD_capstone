@@ -65,7 +65,7 @@ class Bertier_monitor():
             self.safety_margin = self.jacob.compute_safety_margin(arrival_time, self.expected_arrival)
             self.cal_expectation()
         elif (self.seq_num<seq_num):
-            '''
+            '''doesn't work
             self.suspect_intervals.append([self.expected_arrival + self.safety_margin, arrival_time])
             expected_interval = self.expected_arrival - self.arrival_history[-1] + self.safety_margin
             while (self.seq_num<seq_num-1):
