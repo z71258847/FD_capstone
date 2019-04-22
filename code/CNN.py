@@ -15,7 +15,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-device = torch.device(1 if torch.cuda.is_available() else "cpu")
+
+device = torch.device(0 if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu")
 import time
 
@@ -71,7 +72,7 @@ class CNN_monitor():
         self.seq_num = -1;
         self.suspect_intervals=[]
         self.U = 0;
-        self.lr=1e-2
+        self.lr=1e-3
         self.decay=5e-6
         self.optimizer=optim.SGD(self.cnn_module.parameters(),
                              lr=self.lr,
@@ -91,7 +92,7 @@ class CNN_monitor():
             start_time=time.time();
             self.seq_num=seq_num
             if (self.expected_arrival + self.safety_margin.item()*self.ita < arrival_time):
-                self.suspect_intervals.append([self.expected_arrival + self.safety_margin, arrival_time])
+                self.suspect_intervals.append([self.expected_arrival + self.safety_margin.item()*self.ita, arrival_time])
             self.arrival_history.append(arrival_time)
             #print("append arrival:", time.time()-start_time);start_time=time.time();
             optimal_margin = (arrival_time-self.expected_arrival)/self.ita
@@ -153,7 +154,7 @@ for j in range(10):
         n=trace[0]
         t=trace[1]
         expt=monitor.expected_arrival/1e9
-        sft=monitor.safety_margin.item()
+        sft=monitor.safety_margin.item()/10
         maxt=expt+sft
         error_history.append(t/1e9-maxt)
         if (k%1000000==1):

@@ -11,7 +11,7 @@ def parse_trace_file(file_name):
         arrival_time.append([]);
     for s in f:
         count+=1;
-        #if count>2000000: break;
+        if count%5000000==0: print(count);
         try:
             temp = s.split(" ")
             from_id = int(temp[0]);
