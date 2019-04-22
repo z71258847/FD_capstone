@@ -8,7 +8,7 @@ import numpy as np
 from collections import deque
 import matplotlib.pyplot as plt
 import pickle as pkl
-
+import time
 # In[5]:
 
 class Jacobson():
@@ -112,22 +112,29 @@ for j in range(10):
     print("monitoring process %d"%(j))
     print("total receive %d"%(len(arrival_times[j])))
     monitor = Bertier_monitor(1, j, 10)
+    computation_times=[]
+    error_history=[]
     for (k,trace) in enumerate(arrival_times[j]):
         n=trace[0]
         t=trace[1]
         expt=monitor.expected_arrival/1e9
         sft=monitor.safety_margin/1e9
         maxt=expt+sft
+        error_history.append(t/1e9-maxt)
         if (k%1000000==1):
             print("expected and safety margin:", expt, sft)
             print("maximum waiting time", maxt)
             print("actual time", t/1e9)
+        start_time=time.time();
         monitor.forward(n, t)
+        computation_times.append(time.time()-start_time);
     print(len(monitor.suspect_intervals))
-    f=open("suspect%d_%d.pkl"%(1,j), "wb");
+    f=open("Bertier_suspect%d_%d.pkl"%(1,j), "wb");
     pkl.dump(monitor.suspect_intervals, f)
     pkl.dump(arrival_times[j][0], f)
     pkl.dump(arrival_times[j][-1], f)
+    pkl.dump(error_history, f)
+    pkl.dump(computation_times, f)
     f.close()
     
 
