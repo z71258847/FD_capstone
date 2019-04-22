@@ -149,7 +149,7 @@ for j in range(10):
         n=trace[0]
         t=trace[1]
         expt=monitor.expected_arrival/1e9
-        sft=monitor.safety_margin.item()
+        sft=monitor.safety_margin.item()/10
         maxt=expt+sft
         error_history.append(t/1e9-maxt)
         if (k%1000000==1):
