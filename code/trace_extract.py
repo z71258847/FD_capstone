@@ -3,14 +3,18 @@ import numpy as np
 
 TOTAL_TRACE = 10;
 
-def parse_trace_file(file_name):
-    f=open(file_name, "r");
+def parse_trace_file(i):
+    in_path = "../raw_data/"
+    trace_name = "trace%d.log"
+    cur_file=in_path+trace_name%(i);
+    f=open(cur_file, "r");
     count = 0
     arrival_time = []
     for j in range(TOTAL_TRACE):
         arrival_time.append([]);
     for s in f:
         count+=1;
+        #if count>200000: break;#test purpose
         if count%5000000==0: print(count);
         try:
             temp = s.split(" ")
@@ -23,6 +27,10 @@ def parse_trace_file(file_name):
             return arrival_time, count
     f.close();
     return arrival_time, count
+
+def get_directed(i, j):
+    arrival_time, _ = parse_trace_file(i)
+    return arrival_time[j], len(arrival_time[j])
 
 
 if __name__ == "__main__":

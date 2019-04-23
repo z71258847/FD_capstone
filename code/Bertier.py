@@ -3,7 +3,7 @@
 
 # In[4]:
 
-from trace_extract import parse_trace_file
+from trace_extract import parse_trace_file, get_directed
 import numpy as np
 from collections import deque
 import matplotlib.pyplot as plt
@@ -37,7 +37,7 @@ class Jacobson():
 # In[6]:
 
 class Bertier_monitor():
-    def __init__(self, self_id, monitoring_id, history_size):
+    def __init__(self, self_id, monitoring_id, history_size=10):
         self.ita=100000000;
         self.id = self_id
         self.monitoring = monitoring_id
@@ -100,45 +100,79 @@ class Bertier_monitor():
 
 # In[ ]:
 
-in_path = "../raw_data/"
-trace_name = "trace%d.log"
-cur_file=in_path+trace_name%(1);
-arrival_times, c = parse_trace_file(cur_file)
-print(c)
+
+def get_traces(trace_list):
+    traces=[]
+    lens=[]
+    for p in trace_list:
+        u = p[0]; v = p[1];
+        temp_t, temp_l = get_directed(u, v);
+        traces.append(temp_t)
+        lens.append(temp_l)
+    return traces, lens
+
+def create_monitors(trace_list, monitor_type):
+    monitors=[]
+    for p in trace_list:
+        u = p[0]; v = p[1];
+        monitors.append(monitor_type(u, v))
+    return monitors
 
 
-for j in range(10):
-    if (j==1): continue;
-    print("monitoring process %d"%(j))
-    print("total receive %d"%(len(arrival_times[j])))
-    monitor = Bertier_monitor(1, j, 10)
-    computation_times=[]
-    error_history=[]
-    for (k,trace) in enumerate(arrival_times[j]):
-        n=trace[0]
-        t=trace[1]
-        expt=monitor.expected_arrival/1e9
-        sft=monitor.safety_margin/1e9
+# In[9]:
+
+
+trace_list = [(1, 0), (3, 0), (4, 0)]
+num_traces = len(trace_list)
+traces, lens = get_traces(trace_list)
+
+
+# In[13]:
+
+
+error_history = []
+for i in range(num_traces):
+    error_history.append([])
+computation_times = []
+for i in range(num_traces):
+    computation_times.append([])
+start_time = []
+end_time = [0 for i in range(num_traces)]
+monitors = create_monitors(trace_list, Bertier_monitor)
+for i in range(num_traces):
+    count=0;
+    for j in range(len(traces[i])):
+        n = traces[i][j][0]
+        t = traces[i][j][1]
+        if count==0:
+            start_time.append(t)
+        end_time[i] = t;
+        expt=monitors[i].expected_arrival/1e9
+        sft=monitors[i].safety_margin/1e9
         maxt=expt+sft
-        error_history.append(t/1e9-maxt)
-        if (k%1000000==1):
-            print("expected and safety margin:", expt, sft)
+        error_history[i].append(t/1e9-maxt)
+        if (n%5000==1):
+            print("monitor from %d to %d:"%(trace_list[i][0], trace_list[i][1]))
+            print("expected and safety margin", expt, sft)
             print("maximum waiting time", maxt)
             print("actual time", t/1e9)
-        start_time=time.time();
-        monitor.forward(n, t)
-        computation_times.append(time.time()-start_time);
-    print(len(monitor.suspect_intervals))
-    f=open("Bertier_suspect%d_%d.pkl"%(1,j), "wb");
-    pkl.dump(monitor.suspect_intervals, f)
-    pkl.dump(arrival_times[j][0], f)
-    pkl.dump(arrival_times[j][-1], f)
-    pkl.dump(error_history, f)
-    pkl.dump(computation_times, f)
+        timestamp=time.time();
+        monitors[i].forward(n, t)
+        computation_times[i].append(time.time()-timestamp);
+        count+=1;
+
+
+# In[14]:
+
+
+print(start_time)
+print(end_time)
+for i in range(num_traces):
+    u = trace_list[i][0]; v = trace_list[i][1]
+    f=open("../output_data/Bertier_suspect%d_%d.pkl"%(u, v), "wb");
+    pkl.dump(monitors[i].suspect_intervals, f)
+    pkl.dump(start_time[i], f)
+    pkl.dump(end_time[i], f)
+    pkl.dump(error_history[i], f)
+    pkl.dump(computation_times[i], f)
     f.close()
-    
-
-# In[ ]:
-
-
-

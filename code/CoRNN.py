@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 from trace_extract import parse_trace_file, get_directed
@@ -20,7 +20,7 @@ device = torch.device("cpu")
 import time
 
 
-# In[5]:
+# In[2]:
 
 
 class RNN_GRU(nn.Module):
@@ -39,7 +39,7 @@ class RNN_GRU(nn.Module):
         return x        
 
 
-# In[6]:
+# In[3]:
 
 
 def asymetric_loss(output, target, alpha=0.75):
@@ -50,7 +50,7 @@ def asymetric_loss(output, target, alpha=0.75):
     return loss
 
 
-# In[7]:
+# In[4]:
 
 
 class RNN_monitor():
@@ -131,7 +131,7 @@ class RNN_monitor():
         self.rnn_module.hidden_state=self.rnn_module.hidden_state.detach();
 
 
-# In[8]:
+# In[5]:
 
 
 def get_traces(trace_list):
@@ -144,6 +144,10 @@ def get_traces(trace_list):
         lens.append(temp_l)
     return traces, lens
 
+
+# In[6]:
+
+
 def create_monitors(trace_list, monitor_type):
     monitors=[]
     for p in trace_list:
@@ -152,7 +156,7 @@ def create_monitors(trace_list, monitor_type):
     return monitors
 
 
-# In[9]:
+# In[7]:
 
 
 trace_list = [(1, 0), (3, 0), (4, 0)]
@@ -160,9 +164,45 @@ num_traces = len(trace_list)
 traces, lens = get_traces(trace_list)
 
 
-# In[13]:
+# In[8]:
 
 
+def check_aligned(pointers, traces, num_traces):
+    for i in range(num_traces-1):
+        if (traces[i][pointers[i]][0] != traces[i+1][pointers[i+1]][0]):
+            return False;
+    return True;
+
+def align_heartbeat(pointers, traces, num_traces):
+    while (not check_aligned(pointers, traces, num_traces)):
+        max_n = 0;
+        for i in range(num_traces):
+            max_n = max(max_n, traces[i][pointers[i]][0])
+        for i in range(num_traces):
+            while (traces[i][pointers[i]][0]<max_n):
+                pointers[i]+=1
+
+def check_end(pointers, traces, num_traces):
+    for i in range(num_traces):
+        if (pointers[i]>=len(traces[i])):
+            return True
+    return False
+
+def combine_hidden_state(monitors, num_traces):
+    if num_traces==1: 
+        return
+    temp = monitors[0].rnn_module.hidden_state
+    for i in range(1, num_traces):
+        temp += monitors[i].rnn_module.hidden_state
+    for i in range(num_traces):
+        other_state = (temp-monitors[i].rnn_module.hidden_state)/(num_traces-1)
+        monitors[i].combine_hidden_state(other_state)
+
+
+# In[17]:
+
+
+pointers = [0 for i in range(num_traces)]
 error_history = []
 for i in range(num_traces):
     error_history.append([])
@@ -172,11 +212,14 @@ for i in range(num_traces):
 start_time = []
 end_time = [0 for i in range(num_traces)]
 monitors = create_monitors(trace_list, RNN_monitor)
-for i in range(num_traces):
-    count=0;
-    for j in range(len(traces[i])):
-        n = traces[i][j][0]
-        t = traces[i][j][1]
+count = 0;
+while (not check_end(pointers, traces, num_traces)):
+    align_heartbeat(pointers, traces, num_traces);
+    if (check_end(pointers, traces, num_traces)):
+        break;
+    for i in range(num_traces):
+        n = traces[i][pointers[i]][0]
+        t = traces[i][pointers[i]][1]
         if count==0:
             start_time.append(t)
         end_time[i] = t;
@@ -193,32 +236,25 @@ for i in range(num_traces):
         timestamp=time.time();
         monitors[i].forward(n, t)
         computation_times[i].append(time.time()-timestamp);
-        count+=1;
+        pointers[i]+=1
+    combine_hidden_state(monitors, num_traces)
+    count+=1;
 
 
-# In[14]:
+# In[18]:
 
 
 print(start_time)
 print(end_time)
 for i in range(num_traces):
     u = trace_list[i][0]; v = trace_list[i][1]
-    f=open("../output_data/RNN_suspect%d_%d.pkl"%(u, v), "wb");
+    f=open("../output_data/CoRNN_suspect%d_%d.pkl"%(u, v), "wb");
     pkl.dump(monitors[i].suspect_intervals, f)
     pkl.dump(start_time[i], f)
     pkl.dump(end_time[i], f)
     pkl.dump(error_history[i], f)
     pkl.dump(computation_times[i], f)
     f.close()
-
-
-# In[15]:
-
-
-for i in range(num_traces):
-    plt.plot(error_history[i][1:])
-    plt.ylim(-0.1, 0.1)
-    plt.show()
 
 
 # In[ ]:
